@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>javascript</title>
+    <style>
+        canvas{background-color:#000;}
+    </style>
+</head>
+<body>
+<canvas></canvas>
+<script>
+    function Tween(sprite,delay){
+        this._cantors=[];
+        this._step=0;
+        this._target=sprite;
+        this.delay=this._delay=(delay||0)*1000;
+        this.visible=true;
+        this.startTime=performance.now();
+    }
+
+    Tween.prototype={
+        to:function(duration,props){
+            this._cantors.push(new Cantor(duration,props));
+            return this;
+        },
+        update:function(ctx,time){
+            if(!this.visible){
+                return this;
+            }
+            if(this.delay>0){
+                this.delay-=time-this.startTime;
+                this.startTime=time;
+                return this;
+            }
+            var cantor=this._cantors[this._step],
+                target,
+                baseObj,
+                props,
+                percent;
+
+            target=this._target;
+            props=cantor.props;
+            percent=cantor.duration?Math.min(1,(time-this.startTime)/cantor.duration):1;
+            baseObj=this._step?this._cantors[this._step-1].props:target;
+
+            this.x=(props.x-baseObj.x)*percent+baseObj.x;
+            this.alpha=(props.alpha-baseObj.alpha)*percent+baseObj.alpha;
+
+            this.rotation=(props.rotation-baseObj.rotation)*percent+baseObj.rotation;
+            target.draw(ctx,this);
+
+            if(percent===1){
+                this.next(time);
+                props.onComplete&&props.onComplete.call(this,time);
+            }
+
+            return this;
+        },
+        next:function(time){
+            this.startTime=time;
+            if(++this._step===this._cantors.length){
+                this.visible=false;
+            }
+
+            return this;
+        },
+        loop:function(time){
+            this._step=0;
+            this.delay=this._delay;
+            this.startTime=time;
+            this.visible=true;
+            return this;
+        }
+    };
+
+    function Cantor(duration,props){
+        this.duration=duration*1000;
+        this.props=props;
+    }
+
+    function MyText(text,color,fontSize,x,y,alpha,rotation){
+        this.text=text;
+        this.color=color;
+        this.fontSize=fontSize;
+        this.x=x;
+        this.y=y;
+        this.alpha=alpha;
+        this.rotation=rotation;
+    }
+
+    MyText.prototype={
+        draw:function(ctx,cantor){
+            ctx.save();
+            ctx.font=this.fontSize+"px null";
+            ctx.textAlign="center";
+            ctx.fillStyle=this.color;
+            ctx.globalAlpha=cantor.alpha;
+            ctx.translate(cantor.x,this.y-this.fontSize/2);
+            ctx.rotate(cantor.rotation);
+            ctx.fillText(this.text,0,this.fontSize/2);
+            ctx.restore();
+        }
+    };
+
+    var cvs=document.querySelector("canvas"),
+        ctx=cvs.getContext("2d"),
+        text="SULINCHEN",
+        tweens=[],
+        ii=text.length,
+        i=0,
+        delay=0.3,
+        onComplete=function(time){
+            var i=tweens.length;
+
+            while(i--){
+                tweens[i].loop(time);
+            }
+        };
+
+    for(;i<ii;i++){
+        tweens[i]=new Tween(new MyText(text[i],"#35C4F0",24,0,80,0,-1.5),delay*(ii-i))
+            .to(0.5,{x:100,alpha:1,rotation:0})
+            .to(1.5,{x:200,alpha:1,rotation:0})
+            .to(0.5,{x:300,alpha:0,rotation:1.5});
+    }
+
+    tweens[0].to(0.1,{x:300,alpha:0,rotation:0,onComplete:onComplete});
+
+    function render(time){
+        var i=tweens.length;
+        requestAnimationFrame(render);
+        ctx.clearRect(0,0,cvs.width,cvs.height);
+        while(i--){
+            tweens[i].update(ctx,time);
+        }
+    }
+
+    requestAnimationFrame(render);
+
+</script>
+</body>
+</html>
